@@ -1,64 +1,58 @@
 from OpenGL.GL import *
 from OpenGL.GLUT import *
 from OpenGL.GLU import *
+import math
 import time
+import random
 
 
-# ╔══════════════════════════════════════════════════════════════════════════════╗
-# ║                                                                            ║
-# ║                    3D OBSTACLE RUNNER — CSE 423 PROJECT                    ║
-# ║                      (Subway Surfers Style Clone)                          ║
-# ║                                                                            ║
-# ║   RULES:                                                                   ║
-# ║   - NO Shaders, NO Textures                                               ║
-# ║   - Only glutSolidCube, gluCylinder, gluSphere + basic transforms         ║
-# ║   - All code in this single file                                           ║
-# ║   - Each member writes ONLY inside their designated zone                   ║
-# ║                                                                            ║
-# ╚══════════════════════════════════════════════════════════════════════════════╝
+# ============================================================================
+# === ZONE 0: GLOBAL VARIABLES ==============================================
+# ============================================================================
+# Shared state used across all zones. Each member may add their own globals
+# here, clearly labeled with their member number.
+# ============================================================================
 
-
-# ╔══════════════════════════════════════════════════════════════════════════════╗
-# ║                                                                            ║
-# ║                  ZONE 0: GLOBAL VARIABLES & SHARED UTILS                   ║
-# ║                                                                            ║
-# ║   Shared game state used by ALL members.                                   ║
-# ║   Any member may ADD variables here, but NEVER modify another member's     ║
-# ║   existing variables without team agreement.                               ║
-# ║                                                                            ║
-# ╚══════════════════════════════════════════════════════════════════════════════╝
-
-# --- Window dimensions ---
+# --- Window / Display ---
 WINDOW_WIDTH = 1000
 WINDOW_HEIGHT = 800
 
-# --- Game state ---
-game_speed = 1.0        # Global speed multiplier (increases over time)
-score = 0               # Player's current score
-lives = 3               # Player's remaining lives
-game_over = False        # Flag: is the game over?
+# --- Camera (Member 1) ---
+camera_pos = (0, 500, 500)
+fovY = 120              # Field of view (Member 1 will make this dynamic for Warp Speed)
+GRID_LENGTH = 600        # Length of grid lines
 
-# --- Lane configuration ---
-LANE_LEFT = -100
-LANE_CENTER = 0
-LANE_RIGHT = 100
-
-# --- Camera ---
-camera_pos = [0, 200, 400]   # Camera position [x, y, z]
-fovY = 60                    # Field of view (degrees)
-
-# --- Grid / Floor ---
-GRID_LENGTH = 600       # Half-length of the floor grid
+# --- Game State ---
+game_speed = 1.0         # Global game speed multiplier (increases over time)
+time_survived = 0.0      # Elapsed survival time in seconds (used for day/night cycle)
+game_over = False        # True when player collides with an obstacle
+game_paused = False      # True when game is paused
+score = 0                # Player's score
 
 # --- Timing ---
-last_time = 0           # For delta-time calculations
+last_frame_time = 0      # Timestamp of the last frame (for delta-time calculation)
 
+# --- Member 1 Globals (World & Camera) ---
+# (Member 1: add your tunnel/pillar/scroll variables here)
+
+# --- Member 2 Globals (Player) ---
+# (Member 2: add your player position, lane, jump, gravity variables here)
+
+# --- Member 3 Globals (Obstacles & Items) ---
+# (Member 3: add your obstacle lists, powerup lists, spawn timers here)
+
+
+# ============================================================================
+# === ZONE 1: MEMBER 1 — WORLD & CAMERA =====================================
+# ============================================================================
+# Member 1 is responsible for:
+#   1. 3D Scrolling Arcade Tunnel (floor grid + side pillars, Z-axis scroll)
+#   2. Day/Night Cycle (color interpolation based on time_survived)
+#   3. Warp Speed Camera (dynamic fovY in setupCamera)
+# ============================================================================
 
 def draw_text(x, y, text, font=GLUT_BITMAP_HELVETICA_18):
-    """
-    Draws 2D overlay text on screen at pixel coordinates (x, y).
-    Shared utility — any member can call this.
-    """
+    """Draws HUD text at a fixed screen position using orthographic overlay."""
     glColor3f(1, 1, 1)
     glMatrixMode(GL_PROJECTION)
     glPushMatrix()
@@ -83,273 +77,180 @@ def draw_text(x, y, text, font=GLUT_BITMAP_HELVETICA_18):
     glMatrixMode(GL_MODELVIEW)
 
 
-# ════════════════════════════════════════════════════════════════════════════════
-#                        END OF ZONE 0
-# ════════════════════════════════════════════════════════════════════════════════
-
-
-# ╔══════════════════════════════════════════════════════════════════════════════╗
-# ║                                                                            ║
-# ║              ZONE 1: MEMBER 1 — WORLD & CAMERA ARCHITECT                  ║
-# ║                                                                            ║
-# ║   RESPONSIBILITIES:                                                        ║
-# ║   ✦ Setup GL_DEPTH_TEST                                                    ║
-# ║   ✦ Draw and animate the infinite scrolling floor grid                     ║
-# ║   ✦ Build the HUD logic (score, lives display)                             ║
-# ║   ✦ Camera setup (setupCamera)                                             ║
-# ║   ✦ NOVELTY: Dynamic Warp Speed (fovY widens with score)                  ║
-# ║                                                                            ║
-# ║   >>> MEMBER 1: WRITE ALL YOUR FUNCTIONS BELOW THIS LINE <<<              ║
-# ║                                                                            ║
-# ╚══════════════════════════════════════════════════════════════════════════════╝
-
-
 def setupCamera():
     """
-    [MEMBER 1] Configures the camera's projection and view settings.
-    Uses a perspective projection and positions the camera to look at the origin.
+    Configures the camera's projection and view settings.
+    Uses a perspective projection and positions the camera to look at the target.
+    Member 1 TODO: Make fovY dynamic for Warp Speed effect.
     """
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
+    # Aspect ratio = WINDOW_WIDTH / WINDOW_HEIGHT = 1000/800 = 1.25
     gluPerspective(fovY, WINDOW_WIDTH / WINDOW_HEIGHT, 0.1, 1500)
     glMatrixMode(GL_MODELVIEW)
     glLoadIdentity()
 
     x, y, z = camera_pos
-    gluLookAt(x, y, z,    # Camera position
-              0, 0, 0,    # Look-at target (origin)
-              0, 1, 0)    # Up vector (Y-axis is up)
+    gluLookAt(x, y, z,   # Camera position
+              0, 0, 0,   # Look-at target
+              0, 0, 1)   # Up vector (z-axis)
 
 
-def draw_floor():
-    """
-    [MEMBER 1] Draws the scrolling floor grid.
-    TODO: Implement infinite scrolling illusion along Z-axis.
-    """
-    # Placeholder floor — replace with scrolling grid
-    glBegin(GL_QUADS)
-
-    glColor3f(0.15, 0.15, 0.2)
-    glVertex3f(-GRID_LENGTH,  0, -GRID_LENGTH)
-    glVertex3f( GRID_LENGTH,  0, -GRID_LENGTH)
-    glVertex3f( GRID_LENGTH,  0,  GRID_LENGTH)
-    glVertex3f(-GRID_LENGTH,  0,  GRID_LENGTH)
-
-    glEnd()
+# Member 1 TODO: Add these functions in this zone:
+#   - draw_tunnel()        → Floor grid + side pillars with Z-scroll & wraparound
+#   - update_tunnel()      → Move tunnel pieces each frame, snap back when past camera
+#   - get_day_night_color() → Interpolate RGB based on time_survived
+#   - update_warp_fov()    → Adjust fovY based on game_speed
 
 
-def draw_hud():
-    """
-    [MEMBER 1] Draws the heads-up display: score, lives, speed.
-    """
-    draw_text(10, WINDOW_HEIGHT - 30, f"Score: {score}")
-    draw_text(10, WINDOW_HEIGHT - 60, f"Lives: {lives}")
-    draw_text(10, WINDOW_HEIGHT - 90, f"Speed: {game_speed:.1f}x")
+# ============================================================================
+# === ZONE 2: MEMBER 2 — PLAYER CONTROLLER ==================================
+# ============================================================================
+# Member 2 is responsible for:
+#   1. Hierarchical Animated Avatar (body + limbs with glPushMatrix/glPopMatrix)
+#   2. Running Animation (sin() wave on limb rotation)
+#   3. Smooth Lane-Switching & Jumping Kinematics (interpolation + parabolic jump)
+#   4. Gravity Inversion (flip player to ceiling, invert jump math)
+# ============================================================================
+
+# Member 2 TODO: Add these functions in this zone:
+#   - draw_player()         → Hierarchical robot avatar with animated limbs
+#   - update_player()       → Handle lane interpolation, jump physics, gravity state
+#   - player_jump()         → Initiate a jump (set velocity, mark airborne)
+#   - toggle_gravity()      → Flip gravity_inverted boolean, adjust base Y
 
 
-def update_warp_speed():
-    """
-    [MEMBER 1] NOVELTY FEATURE: Dynamic Warp Speed.
-    TODO: Increase game_speed and widen fovY based on score.
-    """
-    pass
+# ============================================================================
+# === ZONE 3: MEMBER 3 — OBSTACLES & COLLISIONS =============================
+# ============================================================================
+# Member 3 is responsible for:
+#   1. Object Manager (lists of dicts for obstacles & powerups)
+#   2. Pattern-Based Spawning (formations at far Z, move toward camera)
+#   3. Dynamic 3D AABB Collision (player vs obstacles/powerups)
+#   4. Morphing/Pulsing Logic (scale/shape-swap when close to camera)
+# ============================================================================
+
+# Member 3 TODO: Add these functions in this zone:
+#   - spawn_pattern()       → Select a formation and add obstacles/powerups to lists
+#   - update_obstacles()    → Move all obstacles along Z, despawn when past camera
+#   - draw_obstacles()      → Render each obstacle (with morphing if close)
+#   - check_collisions()    → AABB collision between player and all active objects
 
 
-# ════════════════════════════════════════════════════════════════════════════════
-#                        END OF ZONE 1 (MEMBER 1)
-# ════════════════════════════════════════════════════════════════════════════════
-
-
-# ╔══════════════════════════════════════════════════════════════════════════════╗
-# ║                                                                            ║
-# ║            ZONE 2: MEMBER 2 — PLAYER CONTROLLER & PHYSICS                 ║
-# ║                                                                            ║
-# ║   RESPONSIBILITIES:                                                        ║
-# ║   ✦ Render the player cube                                                ║
-# ║   ✦ Smooth lane switching (Left / Center / Right)                          ║
-# ║   ✦ Jumping (parabolic Y-axis movement)                                   ║
-# ║   ✦ Rolling / Ducking (Y-axis scale squash)                               ║
-# ║   ✦ NOVELTY: Gravity Inversion (upside-down running)                      ║
-# ║                                                                            ║
-# ║   >>> MEMBER 2: WRITE ALL YOUR FUNCTIONS BELOW THIS LINE <<<              ║
-# ║                                                                            ║
-# ╚══════════════════════════════════════════════════════════════════════════════╝
-
-
-def draw_player():
-    """
-    [MEMBER 2] Renders the player cube at the current lane position.
-    TODO: Implement player rendering with lane position, jump height, and duck scale.
-    """
-    pass
-
-
-def update_player():
-    """
-    [MEMBER 2] Updates player state each frame: lane interpolation, jump arc, duck timer.
-    TODO: Implement smooth lane switching, jump parabola, and roll/duck logic.
-    """
-    pass
-
-
-def handle_player_input(key):
-    """
-    [MEMBER 2] Processes player-specific keyboard input (A/D for lanes, W for jump, S for duck).
-    TODO: Implement lane switching, jump trigger, and duck trigger.
-    """
-    pass
-
-
-def update_gravity_inversion():
-    """
-    [MEMBER 2] NOVELTY FEATURE: Gravity Inversion.
-    TODO: Flip the player's gravity so they run on the ceiling.
-    """
-    pass
-
-
-# ════════════════════════════════════════════════════════════════════════════════
-#                        END OF ZONE 2 (MEMBER 2)
-# ════════════════════════════════════════════════════════════════════════════════
-
-
-# ╔══════════════════════════════════════════════════════════════════════════════╗
-# ║                                                                            ║
-# ║            ZONE 3: MEMBER 3 — OBSTACLE ENGINE & COLLISIONS                ║
-# ║                                                                            ║
-# ║   RESPONSIBILITIES:                                                        ║
-# ║   ✦ Obstacle data manager (spawn, translate toward player, delete)         ║
-# ║   ✦ Draw obstacles (cubes, cylinders, spheres)                             ║
-# ║   ✦ AABB collision detection against the player                            ║
-# ║   ✦ NOVELTY: Morphing Obstacles (shape transitions near camera)            ║
-# ║                                                                            ║
-# ║   >>> MEMBER 3: WRITE ALL YOUR FUNCTIONS BELOW THIS LINE <<<              ║
-# ║                                                                            ║
-# ╚══════════════════════════════════════════════════════════════════════════════╝
-
-
-def spawn_obstacle():
-    """
-    [MEMBER 3] Spawns a new obstacle at a random lane far down the Z-axis.
-    TODO: Implement procedural obstacle generation with random shapes and lanes.
-    """
-    pass
-
-
-def update_obstacles():
-    """
-    [MEMBER 3] Moves all obstacles toward the player along Z-axis. Removes off-screen ones.
-    TODO: Implement obstacle translation and cleanup.
-    """
-    pass
-
-
-def draw_obstacles():
-    """
-    [MEMBER 3] Renders all active obstacles.
-    TODO: Draw each obstacle using glutSolidCube / gluCylinder / gluSphere.
-    """
-    pass
-
-
-def check_collisions():
-    """
-    [MEMBER 3] Checks AABB collisions between the player and all obstacles.
-    TODO: Implement 3D bounding box overlap detection.
-    Returns True if a collision is detected, False otherwise.
-    """
-    return False
-
-
-def update_morphing_obstacles():
-    """
-    [MEMBER 3] NOVELTY FEATURE: Morphing Obstacles.
-    TODO: Smoothly transition obstacle shapes as they cross a Z-axis threshold.
-    """
-    pass
-
-
-# ════════════════════════════════════════════════════════════════════════════════
-#                        END OF ZONE 3 (MEMBER 3)
-# ════════════════════════════════════════════════════════════════════════════════
-
-
-# ╔══════════════════════════════════════════════════════════════════════════════╗
-# ║                                                                            ║
-# ║                     ZONE 4: MAIN GAME LOOP & GLUT SETUP                   ║
-# ║                                                                            ║
-# ║   This zone wires everything together. All members' draw/update            ║
-# ║   functions are called from here. Modify WITH CAUTION — coordinate         ║
-# ║   with the team before changing call order.                                ║
-# ║                                                                            ║
-# ╚══════════════════════════════════════════════════════════════════════════════╝
-
+# ============================================================================
+# === ZONE 4: MAIN GAME LOOP ================================================
+# ============================================================================
+# Contains input handlers, the display callback, idle function, and main().
+# All members may need to ADD CALLS here (e.g., calling draw_player() in
+# showScreen), but coordinate with the team before editing this zone.
+# ============================================================================
 
 def keyboardListener(key, x, y):
     """
-    Routes keyboard input to the appropriate member's handler.
+    Handles keyboard inputs for player movement, game controls, and toggles.
     """
-    global game_over, score, lives, game_speed
+    global game_paused, game_over
 
-    # --- Shared controls ---
+    # --- Game Controls ---
+    # Pause/unpause (P key)
+    # if key == b'p':
+    #     game_paused = not game_paused
+
     # Reset the game (R key)
-    if key == b'r':
-        score = 0
-        lives = 3
-        game_speed = 1.0
-        game_over = False
+    # if key == b'r':
+    #     pass  # TODO: call a reset function
 
-    # --- Member 2 handles player movement keys ---
-    handle_player_input(key)
+    # --- Player Movement (Member 2 will implement these) ---
+    # Move left lane (A key)
+    # if key == b'a':
+    #     pass
+
+    # Move right lane (D key)
+    # if key == b'd':
+    #     pass
+
+    # Jump (W key or Space)
+    # if key == b'w' or key == b' ':
+    #     pass
+
+    # Duck (S key)
+    # if key == b's':
+    #     pass
+
+    # Toggle gravity inversion (G key)
+    # if key == b'g':
+    #     pass
+
+    glutPostRedisplay()
 
 
 def specialKeyListener(key, x, y):
     """
-    Handles special key inputs (arrow keys) for camera adjustment.
+    Handles special key inputs (arrow keys) for adjusting the camera.
     """
     global camera_pos
-    x_cam, y_cam, z_cam = camera_pos
+    x, y, z = camera_pos
 
+    # Move camera up (UP arrow key)
     if key == GLUT_KEY_UP:
-        y_cam += 5
-    if key == GLUT_KEY_DOWN:
-        y_cam -= 5
-    if key == GLUT_KEY_LEFT:
-        x_cam -= 5
-    if key == GLUT_KEY_RIGHT:
-        x_cam += 5
+        y += 5
 
-    camera_pos = [x_cam, y_cam, z_cam]
+    # Move camera down (DOWN arrow key)
+    if key == GLUT_KEY_DOWN:
+        y -= 5
+
+    # Move camera left (LEFT arrow key)
+    if key == GLUT_KEY_LEFT:
+        x -= 5
+
+    # Move camera right (RIGHT arrow key)
+    if key == GLUT_KEY_RIGHT:
+        x += 5
+
+    camera_pos = (x, y, z)
 
 
 def mouseListener(button, state, x, y):
     """
     Handles mouse inputs.
     """
+    # Left click — currently unused
+    # if button == GLUT_LEFT_BUTTON and state == GLUT_DOWN:
+    #     pass
+
+    # Right click — currently unused
+    # if button == GLUT_RIGHT_BUTTON and state == GLUT_DOWN:
+    #     pass
     pass
 
 
 def idle():
     """
-    Idle function — runs every frame.
-    Calls all member update functions, then triggers a redraw.
+    Idle function — runs continuously for real-time game updates.
+    Each member's update function should be called here.
     """
-    global last_time
+    global last_frame_time, time_survived, game_speed
 
-    # --- Member 1: World updates ---
-    update_warp_speed()
+    # --- Delta time calculation ---
+    current_time = time.time()
+    if last_frame_time == 0:
+        last_frame_time = current_time
+    dt = current_time - last_frame_time
+    last_frame_time = current_time
 
-    # --- Member 2: Player updates ---
-    update_player()
-    update_gravity_inversion()
+    if not game_paused and not game_over:
+        time_survived += dt
 
-    # --- Member 3: Obstacle updates ---
-    update_obstacles()
-    update_morphing_obstacles()
+        # --- Member 1: Update world ---
+        # update_tunnel(dt)
+        # update_warp_fov()
 
-    # --- Member 3: Collision check ---
-    if check_collisions():
-        pass  # TODO: Decrement lives, trigger hit effect, etc.
+        # --- Member 2: Update player ---
+        # update_player(dt)
+
+        # --- Member 3: Update obstacles & check collisions ---
+        # update_obstacles(dt)
+        # check_collisions()
 
     glutPostRedisplay()
 
@@ -364,39 +265,65 @@ def showScreen():
 
     setupCamera()
 
-    # --- Member 1: Draw the world ---
-    draw_floor()
+    # --- Draw the grid (temporary placeholder — Member 1 will replace with tunnel) ---
+    glBegin(GL_QUADS)
 
-    # --- Member 2: Draw the player ---
-    draw_player()
+    glColor3f(1, 1, 1)
+    glVertex3f(-GRID_LENGTH, GRID_LENGTH, 0)
+    glVertex3f(0, GRID_LENGTH, 0)
+    glVertex3f(0, 0, 0)
+    glVertex3f(-GRID_LENGTH, 0, 0)
 
-    # --- Member 3: Draw the obstacles ---
-    draw_obstacles()
+    glVertex3f(GRID_LENGTH, -GRID_LENGTH, 0)
+    glVertex3f(0, -GRID_LENGTH, 0)
+    glVertex3f(0, 0, 0)
+    glVertex3f(GRID_LENGTH, 0, 0)
 
-    # --- Member 1: Draw the HUD (always last, overlays everything) ---
-    draw_hud()
+    glColor3f(0.7, 0.5, 0.95)
+    glVertex3f(-GRID_LENGTH, -GRID_LENGTH, 0)
+    glVertex3f(-GRID_LENGTH, 0, 0)
+    glVertex3f(0, 0, 0)
+    glVertex3f(0, -GRID_LENGTH, 0)
+
+    glVertex3f(GRID_LENGTH, GRID_LENGTH, 0)
+    glVertex3f(GRID_LENGTH, 0, 0)
+    glVertex3f(0, 0, 0)
+    glVertex3f(0, GRID_LENGTH, 0)
+    glEnd()
+
+    # --- Member 1: Draw tunnel ---
+    # draw_tunnel()
+
+    # --- Member 2: Draw player ---
+    # draw_player()
+
+    # --- Member 3: Draw obstacles & items ---
+    # draw_obstacles()
+
+    # --- HUD ---
+    draw_text(10, 770, f"Score: {score}")
+    draw_text(10, 740, f"Time: {time_survived:.1f}s | Speed: {game_speed:.1f}x")
+
+    if game_over:
+        draw_text(400, 400, "GAME OVER", GLUT_BITMAP_TIMES_ROMAN_24)
+        draw_text(380, 360, "Press R to restart")
+
+    if game_paused:
+        draw_text(420, 400, "PAUSED", GLUT_BITMAP_TIMES_ROMAN_24)
 
     glutSwapBuffers()
 
 
+# --- Entry Point ---
 def main():
-    """
-    Entry point: initializes GLUT, creates the window, registers callbacks,
-    and starts the main loop.
-    """
     glutInit()
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH)
     glutInitWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT)
     glutInitWindowPosition(0, 0)
-    glutCreateWindow(b"3D Obstacle Runner - CSE 423")
+    wind = glutCreateWindow(b"Obstacle Runner 423")
 
-    # Enable depth testing for proper 3D rendering
-    glEnable(GL_DEPTH_TEST)
+    glEnable(GL_DEPTH_TEST)  # Required by project spec
 
-    # Set dark background
-    glClearColor(0.05, 0.05, 0.1, 1.0)
-
-    # Register callbacks
     glutDisplayFunc(showScreen)
     glutKeyboardFunc(keyboardListener)
     glutSpecialFunc(specialKeyListener)
@@ -404,11 +331,6 @@ def main():
     glutIdleFunc(idle)
 
     glutMainLoop()
-
-
-# ════════════════════════════════════════════════════════════════════════════════
-#                        END OF ZONE 4 (MAIN GAME LOOP)
-# ════════════════════════════════════════════════════════════════════════════════
 
 
 if __name__ == "__main__":
