@@ -1,0 +1,8 @@
+I am Member 1. My zone is `# === MEMBER 1: WORLD & CAMERA ===`. I need to build the environment and camera logic.
+
+My Tasks & Execution Flow:
+1. **The Arcade Tunnel:** I need to write a function that draws a grid floor and side pillars using `GL_QUADS`, `glutSolidCube`, and `gluCylinder`. I need logic to translate these along the Z-axis to simulate movement, snapping them back to the start when they pass the camera.
+2. **Day/Night Cycle:** I need a function that takes a global time variable and outputs interpolated RGB values to change the color of the tunnel over time.
+3. **Warp Speed Camera:** I need to modify `setupCamera()` so the `fovY` variable gently expands as the game's global speed variable increases.
+
+Let's start with Task 1. Please write the Python OpenGL code for a scrolling 3D tunnel. Ensure the variables used can be placed in the global variables zone.

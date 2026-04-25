@@ -1,0 +1,29 @@
+# SINGLE-FILE GITHUB WORKFLOW: THE "ZONED CODING" METHOD
+
+Since we are forced to use a single `.py` file, we MUST follow this exact sequence to avoid Git merge conflicts. No one is allowed to push code outside their designated Zone.
+
+**Phase 0: Initialization & Zoning (Member 1)**
+1. Member 1 creates the GitHub repo with the base `3D_OpenGL_Intro.py` template.
+2. Member 1 adds the empty Zone comment blocks (e.g., `# === MEMBER 2: PLAYER ===`) to establish boundaries.
+3. Member 1 pushes this foundation to the `main` branch. 
+
+**Phase 1: The Environment (Member 1)**
+1. Member 1 creates branch `feature-world`.
+2. Codes the scrolling tunnel and camera setup strictly inside the "World" zone.
+3. Merges `feature-world` into `main`. (The game now has an endless tunnel and camera).
+
+**Phase 2: The Player (Member 2)**
+1. Member 2 pulls the updated `main` branch and creates branch `feature-player`.
+2. Codes the animated avatar, lane switching, and jumping states inside the "Player" zone.
+3. Merges `feature-player` into `main`. (The game now has a tunnel and a controllable running avatar).
+
+**Phase 3: The Threat (Member 3)**
+1. Member 3 pulls the updated `main` branch and creates branch `feature-obstacles`.
+2. Codes the obstacle manager, patterns, and AABB collision inside the "Obstacles" zone.
+3. Merges `feature-obstacles` into `main`. (The core game loop is now fully playable).
+
+**Phase 4: Novelty Integration (Parallel)**
+1. With the core engine stable and zones respected, all members pull the latest `main`.
+2. Everyone branches off simultaneously (`feature-warp`, `feature-gravity`, `feature-morph`).
+3. Members code their specific novelty features inside their designated zones.
+4. Branches are merged back into `main` one by one. Conflicts are avoided because all logic is contained within separate zones.

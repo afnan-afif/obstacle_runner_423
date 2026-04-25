@@ -1,0 +1,9 @@
+I am Member 3. My zone is `# === MEMBER 3: OBSTACLES & ITEMS ===`. I need to build the collision engine and object manager.
+
+My Tasks & Execution Flow:
+1. **Object Manager:** I need lists of dictionaries to track active `obstacles` and `powerups` (storing type, X, Y, Z, active state).
+2. **Pattern Spawning:** I need an update function that spawns objects in specific formations (e.g., a wall with a gap) at the far end of the Z-axis and moves them toward the camera.
+3. **Dynamic 3D AABB Collision:** I need mathematical functions to detect if the player's 3D coordinates intersect with the obstacles or power-ups. The player's bounding box height must be adjustable via variables (for ducking/inverted states).
+4. **Morphing Logic:** I need rendering logic that scales or swaps an obstacle's shape when its Z-distance from the camera drops below a certain threshold.
+
+Let's start with Task 1 and 2. Please write the Python code for managing the lists of objects, translating them down the Z-axis, and spawning a simple 3-block hurdle formation.

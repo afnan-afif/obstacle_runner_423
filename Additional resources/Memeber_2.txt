@@ -1,0 +1,9 @@
+I am Member 2. My zone is `# === MEMBER 2: PLAYER ===`. I need to build the player avatar and kinematics.
+
+My Tasks & Execution Flow:
+1. **Hierarchical Avatar:** I need to write a `draw_player()` function using nested `glPushMatrix` and `glPopMatrix` to build a robotic runner with a body, arms, and legs. 
+2. **Running Animation:** I need to apply `sin()` wave math based on a time variable to `glRotatef` the limbs so it looks like it is running.
+3. **Kinematics:** I need update functions for smooth X-axis lane switching (interpolating coordinates) and Y-axis jumping (using a parabolic gravity equation).
+4. **Gravity Inversion:** I need logic that listens for a boolean. When true, it flips the player 180 degrees, sets their base Y to the ceiling, and inverts the jump math.
+
+Let's start with Task 1 and 2. Please write the Python OpenGL code to draw a hierarchical, animated running avatar using basic shapes.
